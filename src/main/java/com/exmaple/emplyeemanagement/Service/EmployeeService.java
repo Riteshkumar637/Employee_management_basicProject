@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import com.exmaple.emplyeemanagement.Entity.Employee;
 import com.exmaple.emplyeemanagement.Repository.EmployeeRepository;
+import com.exmaple.emplyeemanagement.Kafka.KafkaProducerService;
 
 import java.util.List;
 
@@ -12,9 +13,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmployeeService {
     private final EmployeeRepository repository;
+    private final KafkaProducerService kafkaProducerService;
 
-    public List<Employee> create(List<Employee> employee) {
-        return repository.saveAll(employee);
+    public List<Employee> create(List<Employee> employees) {
+        List<Employee> savedEmployees= repository.saveAll(employees);
+        savedEmployees.forEach(employee -> kafkaProducerService.sendEmployee(employee));
+
+        return savedEmployees;
     }
 
     public List<Employee> getAll() {
@@ -32,7 +37,12 @@ public class EmployeeService {
         existing.setEmail(employee.getEmail());
         existing.setDepartment(employee.getDepartment());
         existing.setSalary(employee.getSalary());
-        return repository.save(existing);
+        Employee updatedEmployee =
+                repository.save(existing);
+
+        kafkaProducerService.sendEmployee(updatedEmployee);
+
+        return updatedEmployee;
     }
 
     public void delete(Long id) {
